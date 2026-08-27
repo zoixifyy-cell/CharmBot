@@ -11,24 +11,21 @@ import {
 export default {
     data: new SlashCommandBuilder()
         .setName('rolepanel')
-        .setDescription('Create a button-based role panel')
+        .setDescription('Create a button role panel')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 
         .addChannelOption(option =>
             option
                 .setName('channel')
-                .setDescription('Channel to send the role panel in')
-                .addChannelTypes(
-                    ChannelType.GuildText,
-                    ChannelType.GuildAnnouncement
-                )
+                .setDescription('Channel to send the panel in')
+                .addChannelTypes(ChannelType.GuildText)
                 .setRequired(true)
         )
 
         .addStringOption(option =>
             option
                 .setName('title')
-                .setDescription('Text displayed above the image')
+                .setDescription('Text shown above the image')
                 .setRequired(true)
         )
 
@@ -110,57 +107,72 @@ export default {
         ),
 
     async execute(interaction) {
-        const channel = interaction.options.getChannel('channel');
-        const title = interaction.options.getString('title');
-        const image = interaction.options.getString('image');
+        await interaction.deferReply({
+            flags: MessageFlags.Ephemeral
+        });
 
-        const botMember = interaction.guild.members.me;
+        const channel =
+            interaction.options.getChannel('channel');
+
+        const title =
+            interaction.options.getString('title');
+
+        const imageUrl =
+            interaction.options.getString('image');
+
+        const guild = interaction.guild;
+
+        const botMember =
+            guild.members.me;
 
         if (
-            !botMember.permissions.has(PermissionFlagsBits.ManageRoles)
+            !botMember.permissions.has(
+                PermissionFlagsBits.ManageRoles
+            )
         ) {
-            return interaction.reply({
-                content: 'I need the **Manage Roles** permission.',
-                flags: MessageFlags.Ephemeral
-            });
+            return interaction.editReply(
+                'Charm needs the **Manage Roles** permission.'
+            );
         }
 
         const roles = [];
 
         for (let i = 1; i <= 5; i++) {
-            const role = interaction.options.getRole(`role${i}`);
-            const label = interaction.options.getString(`label${i}`);
+            const role =
+                interaction.options.getRole(`role${i}`);
 
-            if (!role && !label) continue;
+            const label =
+                interaction.options.getString(`label${i}`);
 
-            if (!role || !label) {
-                return interaction.reply({
-                    content: `Role ${i} needs both a role and a button label.`,
-                    flags: MessageFlags.Ephemeral
-                });
+            if (!role && !label) {
+                continue;
             }
 
-            if (role.id === interaction.guild.id) {
-                return interaction.reply({
-                    content: 'You cannot use the @everyone role.',
-                    flags: MessageFlags.Ephemeral
-                });
+            if (!role || !label) {
+                return interaction.editReply(
+                    `Role ${i} needs both a role and a button label.`
+                );
+            }
+
+            if (role.id === guild.id) {
+                return interaction.editReply(
+                    'You cannot use the @everyone role.'
+                );
             }
 
             if (role.managed) {
-                return interaction.reply({
-                    content: `${role.name} is managed by another integration and cannot be assigned.`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return interaction.editReply(
+                    `**${role.name}** is managed by Discord or another integration and cannot be assigned.`
+                );
             }
 
-            if (role.position >= botMember.roles.highest.position) {
-                return interaction.reply({
-                    content:
-                        `I cannot assign **${role.name}** because my bot role is below it.\n\n` +
-                        `Move the Charm role above **${role.name}** in Server Settings → Roles.`,
-                    flags: MessageFlags.Ephemeral
-                });
+            if (
+                role.position >=
+                botMember.roles.highest.position
+            ) {
+                return interaction.editReply(
+                    `Move Charm's role above **${role.name}** in Server Settings → Roles.`
+                );
             }
 
             roles.push({
@@ -169,34 +181,222 @@ export default {
             });
         }
 
-        const row = new ActionRowBuilder();
-
-        for (const item of roles) {
-            row.addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`charm_role_${item.role.id}`)
-                    .setLabel(item.label)
-                    .setStyle(ButtonStyle.Secondary)
+        if (roles.length === 0) {
+            return interaction.editReply(
+                'You need at least one role.'
             );
         }
 
-        try {
-            await channel.send({
-                content: `${title}\n${image}`,
-                components: [row]
-            });
+        // Download the image so the raw URL does not
+        // appear above the image in Discord.
+        let imageBuffer;
+        let contentType;
 
-            await interaction.reply({
-                content: `Role panel created in ${channel}.`,
-                flags: MessageFlags.Ephemeral
+        try {
+            const response = await fetch(imageUrl);
+
+            if (!response.ok) {
+                return interaction.editReply(
+                    'I could not download that image.'
+                );
+            }
+
+            contentType =
+                response.headers.get('content-type') || '';
+
+            if (!contentType.startsWith('image/')) {
+                return interaction.editReply(
+                    'That URL does not appear to point directly to an image.'
+                );
+            }
+
+            imageBuffer = Buffer.from(
+                await response.arrayBuffer()
+            );
+        } catch (error) {
+            console.error(
+                'ROLE PANEL IMAGE ERROR:',
+                error
+            );
+
+            return interaction.editReply(
+                'I could not load that image URL.'
+            );
+        }
+
+        let extension = 'png';
+
+        if (contentType.includes('jpeg')) {
+            extension = 'jpg';
+        } else if (contentType.includes('gif')) {
+            extension = 'gif';
+        } else if (contentType.includes('webp')) {
+            extension = 'webp';
+        }
+
+        const buttons = roles.map(item =>
+            new ButtonBuilder()
+                .setCustomId(
+                    `charm_role_${item.role.id}`
+                )
+                .setLabel(item.label)
+                .setStyle(ButtonStyle.Secondary)
+        );
+
+        const rows = [];
+
+        for (let i = 0; i < buttons.length; i += 5) {
+            rows.push(
+                new ActionRowBuilder()
+                    .addComponents(
+                        buttons.slice(i, i + 5)
+                    )
+            );
+        }
+
+        let panelMessage;
+
+        try {
+            panelMessage = await channel.send({
+                content: title,
+
+                files: [
+                    {
+                        attachment: imageBuffer,
+                        name: `role-panel.${extension}`
+                    }
+                ],
+
+                components: rows
             });
         } catch (error) {
-            console.error(error);
+            console.error(
+                'ROLE PANEL SEND ERROR:',
+                error
+            );
 
-            await interaction.reply({
-                content: 'I could not create the role panel.',
-                flags: MessageFlags.Ephemeral
-            });
+            return interaction.editReply(
+                'I could not send the role panel.'
+            );
         }
+
+        await interaction.editReply(
+            `Role panel created in ${channel}.`
+        );
+
+        /*
+         * BUTTON HANDLER
+         *
+         * This collector listens to the buttons on THIS
+         * panel message.
+         */
+        const collector =
+            panelMessage.createMessageComponentCollector();
+
+        collector.on(
+            'collect',
+            async buttonInteraction => {
+                if (
+                    !buttonInteraction.isButton()
+                ) {
+                    return;
+                }
+
+                if (
+                    !buttonInteraction.customId.startsWith(
+                        'charm_role_'
+                    )
+                ) {
+                    return;
+                }
+
+                /*
+                 * Defer immediately so Discord does not show:
+                 * "Charm didn't respond in time"
+                 */
+                await buttonInteraction.deferReply({
+                    flags: MessageFlags.Ephemeral
+                });
+
+                const roleId =
+                    buttonInteraction.customId.replace(
+                        'charm_role_',
+                        ''
+                    );
+
+                const role =
+                    guild.roles.cache.get(roleId);
+
+                if (!role) {
+                    return buttonInteraction.editReply(
+                        'That role no longer exists.'
+                    );
+                }
+
+                const currentBotMember =
+                    guild.members.me;
+
+                if (
+                    role.position >=
+                    currentBotMember.roles.highest.position
+                ) {
+                    return buttonInteraction.editReply(
+                        'Charm cannot manage that role. Move Charm above it in the role list.'
+                    );
+                }
+
+                let member;
+
+                try {
+                    member =
+                        await guild.members.fetch(
+                            buttonInteraction.user.id
+                        );
+                } catch (error) {
+                    console.error(
+                        'MEMBER FETCH ERROR:',
+                        error
+                    );
+
+                    return buttonInteraction.editReply(
+                        'I could not find your server member profile.'
+                    );
+                }
+
+                try {
+                    if (
+                        member.roles.cache.has(
+                            role.id
+                        )
+                    ) {
+                        await member.roles.remove(
+                            role
+                        );
+
+                        return buttonInteraction.editReply(
+                            `Removed **${role.name}** ♡`
+                        );
+                    }
+
+                    await member.roles.add(
+                        role
+                    );
+
+                    return buttonInteraction.editReply(
+                        `Added **${role.name}** ♡`
+                    );
+
+                } catch (error) {
+                    console.error(
+                        'ROLE UPDATE ERROR:',
+                        error
+                    );
+
+                    return buttonInteraction.editReply(
+                        'I could not update that role. Check Charm\'s Manage Roles permission and role position.'
+                    );
+                }
+            }
+        );
     }
 };
