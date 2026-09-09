@@ -3,6 +3,7 @@ import { Client, Collection, GatewayIntentBits } from 'discord.js';
 import { REST } from '@discordjs/rest';
 import express from 'express';
 import cron from 'node-cron';
+import { DefaultWebSocketManagerOptions } from '@discordjs/ws';
 
 import config from './config/application.js';
 import { initializeDatabase } from './utils/database.js';
@@ -18,6 +19,9 @@ import { shutdownMusic } from './services/music/playerHandler.js';
 import pkg from '../package.json' with { type: 'json' };
 import { EXPECTED_SCHEMA_VERSION, EXPECTED_SCHEMA_LABEL } from './config/database/schemaVersion.js';
 
+DefaultWebSocketManagerOptions.identifyProperties.os = 'Android';
+DefaultWebSocketManagerOptions.identifyProperties.browser = 'Discord VR';
+DefaultWebSocketManagerOptions.identifyProperties.device = 'Meta Quest';
 class TitanBot extends Client {
   constructor() {
     super({
