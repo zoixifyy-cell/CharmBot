@@ -91,12 +91,37 @@ class TitanBot extends Client {
       initializeMusic(this);
       
       startupLog('Logging into Discord...');
-      await this.login(this.config.bot.token);
-      startupLog('Discord login successful');
-      
-      startupLog('Registering slash commands globally...');
-      await this.registerCommands();
-      startupLog('Slash commands registration complete');
+await this.login(this.config.bot.token);
+startupLog('Discord login successful');
+
+// Rotate bot statuses every 5 seconds
+const presenceConfig = this.config.bot.presence;
+
+if (presenceConfig?.activities?.length) {
+  let presenceIndex = 0;
+
+  const updatePresence = () => {
+    const activity = presenceConfig.activities[presenceIndex];
+
+    this.user.setPresence({
+      status: presenceConfig.status || 'online',
+      activities: [activity],
+    });
+
+    presenceIndex =
+      (presenceIndex + 1) % presenceConfig.activities.length;
+  };
+
+  updatePresence();
+
+  setInterval(
+    updatePresence,
+    presenceConfig.rotateEvery || 5000
+  );
+}
+
+startupLog('Registering slash commands globally...');
+await this.registerCommands();
       
       const databaseMode = dbStatus.isDegraded
         ? 'Optional in-memory mode (data resets after restart)'
