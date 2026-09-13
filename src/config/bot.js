@@ -1,35 +1,34 @@
 import { logger } from '../utils/logger.js';
 
 export const botConfig = {
-  // =========================
-  // BOT PRESENCE (what users see under the bot name)
-  // =========================
-  // `status` options:
-  // - "online"    = green dot
-  // - "idle"      = yellow moon
-  // - "dnd"       = red do-not-disturb
-  // - "invisible" = appears offline
-  presence: {
-    // Current online state shown on Discord.
-    status: "online",
+presence: {
+  status: "online",
 
-    // Activity lines shown under the bot name.
-    // `type` number mapping from Discord:
-    // 0 = Playing
-    // 1 = Streaming
-    // 2 = Listening
-    // 3 = Watching
-    // 4 = Custom
-    // 5 = Competing
-    activities: [
-      {
-        name: "Custom Status", // required by Discord API, not shown in the client
-        state: "discord.gg/glimmer ✮",     // this is what people actually see
-        type: 4,               // Custom
-      },
-    ],
-  },
+  rotateEvery: 5000,
 
+  activities: [
+    {
+      name: "Custom Status",
+      state: "discord.gg/glimmer ✮",
+      type: 4,
+    },
+    {
+      name: "Custom Status",
+      state: "watching the stars ⟢",
+      type: 4,
+    },
+    {
+      name: "Custom Status",
+      state: "dreaming ᶻ 𝗓 𐰁",
+      type: 4,
+    },
+    {
+      name: "Custom Status",
+      state: "protecting /glimmer ♡",
+      type: 4,
+    },
+  ],
+},
   // =========================
   // COMMAND BEHAVIOR
   // =========================
