@@ -4,7 +4,7 @@ export const botConfig = {
 presence: {
   status: "online",
 
-  rotateEvery: 5000,
+  rotateEvery: 10000,
 
   activities: [
     {
