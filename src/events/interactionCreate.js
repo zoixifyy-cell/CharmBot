@@ -19,6 +19,7 @@ import { resolveSlashAccessKey } from '../utils/messageAdapter.js';
 import { isCollectorManagedComponent } from '../utils/collectorComponents.js';
 import { ResponseCoordinator } from '../utils/responseCoordinator.js';
 import { enforceDefaultCommandPermissions } from '../utils/permissionGuard.js';
+import { handleRolePanelButton } from '../handlers/interactionHandlers/rolePanelButtons.js';
 
 const COMMAND_ERROR_SUBTYPES = {
   warn: 'warn_failed',
@@ -307,6 +308,9 @@ export default {
             }
           }
         } else if (interaction.isButton()) {
+          if (await handleRolePanelButton(interaction)) {
+  return;
+}
           if (interaction.customId.startsWith('shared_todo_')) {
             const parts = interaction.customId.split('_');
             const buttonType = parts.slice(0, 3).join('_');
