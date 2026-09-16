@@ -10,6 +10,11 @@ export async function handleRolePanelButton(interaction) {
         return false;
     }
 
+    // Respond immediately so Discord doesn't time out.
+    await interaction.deferReply({
+        flags: MessageFlags.Ephemeral
+    });
+
     const roleId = interaction.customId.replace(
         'charm_role_',
         ''
@@ -18,10 +23,9 @@ export async function handleRolePanelButton(interaction) {
     const guild = interaction.guild;
 
     if (!guild) {
-        await interaction.reply({
-            content: 'This button can only be used inside a server.',
-            flags: MessageFlags.Ephemeral
-        });
+        await interaction.editReply(
+            'This button can only be used inside a server.'
+        );
 
         return true;
     }
@@ -29,10 +33,9 @@ export async function handleRolePanelButton(interaction) {
     const role = guild.roles.cache.get(roleId);
 
     if (!role) {
-        await interaction.reply({
-            content: 'That role no longer exists.',
-            flags: MessageFlags.Ephemeral
-        });
+        await interaction.editReply(
+            'That role no longer exists.'
+        );
 
         return true;
     }
@@ -44,50 +47,45 @@ export async function handleRolePanelButton(interaction) {
             PermissionFlagsBits.ManageRoles
         )
     ) {
-        await interaction.reply({
-            content: 'I no longer have permission to manage roles.',
-            flags: MessageFlags.Ephemeral
-        });
+        await interaction.editReply(
+            'I no longer have permission to manage roles.'
+        );
 
         return true;
     }
 
     if (role.position >= botMember.roles.highest.position) {
-        await interaction.reply({
-            content: 'I cannot manage that role because it is above my bot role.',
-            flags: MessageFlags.Ephemeral
-        });
+        await interaction.editReply(
+            'I cannot manage that role because it is above my bot role.'
+        );
 
         return true;
     }
 
-    const member = await guild.members.fetch(
-        interaction.user.id
-    );
-
     try {
+        const member = await guild.members.fetch(
+            interaction.user.id
+        );
+
         if (member.roles.cache.has(role.id)) {
             await member.roles.remove(role);
 
-            await interaction.reply({
-                content: `Removed **${role.name}** ♡`,
-                flags: MessageFlags.Ephemeral
-            });
+            await interaction.editReply(
+                `Removed **${role.name}** ♡`
+            );
         } else {
             await member.roles.add(role);
 
-            await interaction.reply({
-                content: `Added **${role.name}** ♡`,
-                flags: MessageFlags.Ephemeral
-            });
+            await interaction.editReply(
+                `Added **${role.name}** ♡`
+            );
         }
     } catch (error) {
-        console.error(error);
+        console.error('ROLE PANEL ERROR:', error);
 
-        await interaction.reply({
-            content: 'I could not update your role.',
-            flags: MessageFlags.Ephemeral
-        });
+        await interaction.editReply(
+            'I could not update your role. Check my Manage Roles permission and role position.'
+        );
     }
 
     return true;
