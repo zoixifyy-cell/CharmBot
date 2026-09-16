@@ -254,10 +254,8 @@ export default {
             );
         }
 
-        let panelMessage;
-
-        try {
-            panelMessage = await channel.send({
+              try {
+            await channel.send({
                 content: title,
 
                 files: [
@@ -282,121 +280,6 @@ export default {
 
         await interaction.editReply(
             `Role panel created in ${channel}.`
-        );
-
-        /*
-         * BUTTON HANDLER
-         *
-         * This collector listens to the buttons on THIS
-         * panel message.
-         */
-        const collector =
-            panelMessage.createMessageComponentCollector();
-
-        collector.on(
-            'collect',
-            async buttonInteraction => {
-                if (
-                    !buttonInteraction.isButton()
-                ) {
-                    return;
-                }
-
-                if (
-                    !buttonInteraction.customId.startsWith(
-                        'charm_role_'
-                    )
-                ) {
-                    return;
-                }
-
-                /*
-                 * Defer immediately so Discord does not show:
-                 * "Charm didn't respond in time"
-                 */
-                await buttonInteraction.deferReply({
-                    flags: MessageFlags.Ephemeral
-                });
-
-                const roleId =
-                    buttonInteraction.customId.replace(
-                        'charm_role_',
-                        ''
-                    );
-
-                const role =
-                    guild.roles.cache.get(roleId);
-
-                if (!role) {
-                    return buttonInteraction.editReply(
-                        'That role no longer exists.'
-                    );
-                }
-
-                const currentBotMember =
-                    guild.members.me;
-
-                if (
-                    role.position >=
-                    currentBotMember.roles.highest.position
-                ) {
-                    return buttonInteraction.editReply(
-                        'Charm cannot manage that role. Move Charm above it in the role list.'
-                    );
-                }
-
-                let member;
-
-                try {
-                    member =
-                        await guild.members.fetch(
-                            buttonInteraction.user.id
-                        );
-                } catch (error) {
-                    console.error(
-                        'MEMBER FETCH ERROR:',
-                        error
-                    );
-
-                    return buttonInteraction.editReply(
-                        'I could not find your server member profile.'
-                    );
-                }
-
-                try {
-                    if (
-                        member.roles.cache.has(
-                            role.id
-                        )
-                    ) {
-                        await member.roles.remove(
-                            role
-                        );
-
-                        return buttonInteraction.editReply(
-                            `Removed **${role.name}** ♡`
-                        );
-                    }
-
-                    await member.roles.add(
-                        role
-                    );
-
-                    return buttonInteraction.editReply(
-                        `Added **${role.name}** ♡`
-                    );
-
-                } catch (error) {
-                    console.error(
-                        'ROLE UPDATE ERROR:',
-                        error
-                    );
-
-                    return buttonInteraction.editReply(
-                        'I could not update that role. Check Charm\'s Manage Roles permission and role position.'
-                    );
-                }
-            }
         );
     }
 };
